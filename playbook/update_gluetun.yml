@@ -3,6 +3,14 @@
   hosts: seedbox
   gather_facts: no
   tasks:
+    - name: Ensure rtorrent.rc file exists
+      file:
+        path: "{{ item.rtorrent_rc }}"
+        state: touch
+      loop: "{{ users }}"
+      loop_control:
+        label: "{{ item.name }}"
+
     - name: Fetch current port from Docker logs
       shell: docker logs rutorrent-{{ item.name }}-vpn | grep "port forwarded is" | tail -n1 | awk '{print $NF}'
       register: current_port
