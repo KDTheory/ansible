@@ -1,0 +1,12 @@
+---
+# 0 5 * * 0
+- name: clean docker
+  hosts: docker
+  tasks:
+    - name: prune non-dangling images and volumes
+      community.docker.docker_prune:
+        images: true
+        images_filters:
+          dangling: false
+        volumes: true
+        builder_cache: false

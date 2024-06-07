@@ -1,0 +1,69 @@
+---
+- name: Update ports for users
+  hosts: seedbox
+  gather_facts: no
+  tasks:
+    - name: Fetch current port from Docker logs
+      shell: docker logs rutorrent-{{ item.name }}-vpn | grep "port forwarded is" | tail -n1 | awk '{print $NF}'
+      register: current_port
+      loop: "{{ users }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Fetch port from rtorrent.rc
+      slurp:
+        src: "{{ item.rtorrent_rc }}"
+      register: rtorrent_rc_content
+      loop: "{{ users }}"
+      loop_control:
+        label: "{{ item.name }}"
+    
+    - name: Parse port from rtorrent.rc content
+      set_fact:
+        current_rtorrent_port: "{{ (item.content | b64decode).split('\n') | select('match', '^network.port_range.set') | list | first | regex_search('network.port_range.set = ([0-9]+)-', '\\1') }}"
+      loop: "{{ rtorrent_rc_content.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Check if ports are different
+      set_fact:
+        port_diff: "{{ (current_port.results[loop.index0].stdout != current_rtorrent_port) | ternary(true, false) }}"
+      loop: "{{ users }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Update rtorrent.rc if port is different
+      template:
+        src: "templates/rtorrent.rc.j2"
+        dest: "{{ item.rtorrent_rc }}"
+      when: port_diff
+      loop: "{{ users }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+- name: Restart Docker stack if port is different
+  hosts: portainer
+  gather_facts: no
+  tasks:
+    - name: Stop Docker stack via Portainer API
+      uri:
+        url: "{{ portainer_url }}/api/stacks/{{ item.stack_id }}/stop?endpointId=2"
+        method: POST
+        headers:
+          X-API-Key: "{{ portainer_api_key }}"
+        status_code: 200
+      when: port_diff
+      loop: "{{ users }}"
+      loop_control:
+        label: "{{ item.name }}"
+    - name: Start Docker stack via Portainer API
+      uri:
+        url: "{{ portainer_url }}/api/stacks/{{ item.stack_id }}/start?endpointId=2"
+        method: POST
+        headers:
+          X-API-Key: "{{ portainer_api_key }}"
+        status_code: 200
+      when: port_diff
+      loop: "{{ users }}"
+      loop_control:
+        label: "{{ item.name }}"

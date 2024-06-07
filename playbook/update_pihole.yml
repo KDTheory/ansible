@@ -1,0 +1,8 @@
+---
+# 0 5 * * *
+- hosts: pihole_servers
+  become: true
+
+  tasks:
+  - name: Update pihole
+    ansible.builtin.command: pihole -up
