@@ -2,6 +2,7 @@
 # 0 5 * * 0
 - name: clean docker
   hosts: docker
+  become: true
   tasks:
     - name: prune non-dangling images and volumes
       community.docker.docker_prune:
