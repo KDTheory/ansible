@@ -1,6 +1,6 @@
 ---
 - name: Update Portainer stack
-  hosts: portainer
+  hosts: docker
   gather_facts: false
   vars:
     portainer_url: "{{ lookup('env', 'PORTAINER_URL') }}"
@@ -19,12 +19,18 @@
       loop: "{{ users }}"
       register: update_results
 
-    - name: Restart stacks
+    - name: Set restart flag if any stack update has changed
+      set_fact:
+        stack_restart_required: true
+      when: update_results.changed
+      loop: "{{ users }}"
+
+    - name: Restart stacks if needed
       uri:
         url: "{{ portainer_url }}/api/stacks/{{ item.stack_id }}/restart?endpointId=1"
         method: POST
         headers:
           Authorization: "Bearer {{ portainer_api_key }}"
           Content-Type: "application/json"
+      when: stack_restart_required is defined and stack_restart_required
       loop: "{{ users }}"
-      register: restart_results

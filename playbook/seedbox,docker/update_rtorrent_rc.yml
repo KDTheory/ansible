@@ -6,9 +6,22 @@
     gluetun_port: "{{ hostvars['docker']['gluetun_port'] }}"
     users: "{{ lookup('env', 'USERS') | from_json }}"
   tasks:
-    - name: Update .rtorrent.rc for users
+    - name: Check current port in .rtorrent.rc for users
+      command: grep 'port_range = ' {{ item.rtorrent_rc }}
+      register: current_port
+      loop: "{{ users }}"
+      changed_when: false
+
+    - name: Set changed flag if port is different
+      set_fact:
+        port_changed: true
+      when: "'port_range = {{ gluetun_port }}-{{ gluetun_port }}' not in current_port.stdout"
+      loop: "{{ users }}"
+
+    - name: Update .rtorrent.rc for users if port has changed
       lineinfile:
         path: "{{ item.rtorrent_rc }}"
         regexp: 'port_range = '
         line: "port_range = {{ gluetun_port }}-{{ gluetun_port }}"
+      when: port_changed is defined and port_changed
       loop: "{{ users }}"
