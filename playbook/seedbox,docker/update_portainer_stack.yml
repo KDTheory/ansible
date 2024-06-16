@@ -1,0 +1,30 @@
+---
+- name: Update Portainer stack
+  hosts: docker
+  gather_facts: false
+  vars:
+    portainer_url: "{{ lookup('env', 'PORTAINER_URL') }}"
+    portainer_api_key: "{{ lookup('env', 'PORTAINER_API_KEY') }}"
+    users: "{{ lookup('env', 'USERS') | from_json }}"
+  tasks:
+    - name: Update stacks with new port
+      uri:
+        url: "{{ portainer_url }}/api/stacks/{{ item.stack_id }}/update?endpointId=1"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ portainer_api_key }}"
+          Content-Type: "application/json"
+        body: '{"env": [{"name": "GLUETUN_PORT", "value": "{{ hostvars['docker']['gluetun_port'] }}"}]}'
+        body_format: json
+      loop: "{{ users }}"
+      register: update_results
+
+    - name: Restart stacks
+      uri:
+        url: "{{ portainer_url }}/api/stacks/{{ item.stack_id }}/restart?endpointId=1"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ portainer_api_key }}"
+          Content-Type: "application/json"
+      loop: "{{ users }}"
+      register: restart_results

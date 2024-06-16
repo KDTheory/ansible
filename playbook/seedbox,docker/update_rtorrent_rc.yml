@@ -1,0 +1,14 @@
+---
+- name: Update rtorrent.rc files
+  hosts: seedbox
+  gather_facts: false
+  vars:
+    gluetun_port: "{{ hostvars['docker']['gluetun_port'] }}"
+    users: "{{ lookup('env', 'USERS') | from_json }}"
+  tasks:
+    - name: Update .rtorrent.rc for users
+      lineinfile:
+        path: "{{ item.rtorrent_rc }}"
+        regexp: 'port_range = '
+        line: "port_range = {{ gluetun_port }}-{{ gluetun_port }}"
+      loop: "{{ users }}"
