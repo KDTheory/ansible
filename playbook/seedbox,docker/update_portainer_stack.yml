@@ -1,6 +1,6 @@
 ---
 - name: Update Portainer stack
-  hosts: docker
+  hosts: portainer
   gather_facts: false
   vars:
     portainer_url: "{{ lookup('env', 'PORTAINER_URL') }}"

@@ -1,6 +1,6 @@
 ---
 - name: Get Gluetun port
-  hosts: docker
+  hosts: portainer
   gather_facts: false
   tasks:
     - name: Get the Gluetun container port

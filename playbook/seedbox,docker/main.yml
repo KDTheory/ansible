@@ -1,6 +1,6 @@
 ---
 - name: Orchestrate Seedbox and Docker updates
-  hosts: localhost
+  hosts: portainer
   gather_facts: false
   tasks:
     - name: Run playbook to get Gluetun port
