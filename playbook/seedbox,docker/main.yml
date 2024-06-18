@@ -4,13 +4,10 @@
   gather_facts: false
   tasks:
     - name: Run playbook to get Gluetun port
-      ansible.builtin.include_playbook:
-        file: get_gluetun_port.yml
+      import_playbook: get_gluetun_port.yml
 
     - name: Run playbook to update .rtorrent.rc files
-      ansible.builtin.include_playbook:
-        file: update_rtorrent_rc.yml
+      import_playbook: update_rtorrent_rc.yml
 
     - name: Run playbook to update and restart Portainer stack
-      ansible.builtin.include_playbook:
-        file: update_portainer_stack.yml
+      import_playbook: update_portainer_stack.yml
