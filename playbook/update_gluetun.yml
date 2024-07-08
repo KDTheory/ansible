@@ -11,15 +11,25 @@
       set_fact:
         gluetun_port: "{{ gluetun_port_output.stdout | regex_search(':(\\d+)', '\\1') }}"
 
-    - name: Save Gluetun port to global variable
-      set_fact:
-        global_gluetun_port: "{{ gluetun_port }}"
+    - name: Save Gluetun port to a file
+      copy:
+        content: "{{ gluetun_port }}"
+        dest: /tmp/gluetun_port.txt
       delegate_to: localhost
 
 - name: Fetch current port from rtorrent.rc for each user and update if necessary
   hosts: seedbox
   gather_facts: false
   tasks:
+    - name: Load Gluetun port from file
+      slurp:
+        src: /tmp/gluetun_port.txt
+      register: gluetun_port_file
+
+    - name: Set gluetun_port from file content
+      set_fact:
+        global_gluetun_port: "{{ gluetun_port_file.content | b64decode }}"
+
     - name: Check current port in .rtorrent.rc for user kevin
       command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
       register: current_port_kevin
