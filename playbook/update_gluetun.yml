@@ -17,6 +17,12 @@
         dest: /tmp/gluetun_port.txt
       delegate_to: localhost
 
+    - name: Copy Gluetun port file to seedbox
+      copy:
+        src: /tmp/gluetun_port.txt
+        dest: /tmp/gluetun_port.txt
+      delegate_to: seedbox
+
 - name: Fetch current port from rtorrent.rc for each user and update if necessary
   hosts: seedbox
   gather_facts: false
