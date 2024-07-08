@@ -25,14 +25,24 @@
       register: current_port_alexis
       changed_when: false
 
+    - name: Ensure current_port_kevin_parsed is defined
+      set_fact:
+        current_port_kevin_parsed: "{{ '' }}"
+      when: current_port_kevin is not defined or current_port_kevin.stdout == ""
+
+    - name: Ensure current_port_alexis_parsed is defined
+      set_fact:
+        current_port_alexis_parsed: "{{ '' }}"
+      when: current_port_alexis is not defined or current_port_alexis.stdout == ""
+
     - name: Parse port from rtorrent.rc content for user kevin
       set_fact:
-        current_port_kevin_parsed: "{{ (current_port_kevin.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1')) | default('') }}"
+        current_port_kevin_parsed: "{{ current_port_kevin.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
       when: current_port_kevin is defined and current_port_kevin.stdout != ""
 
     - name: Parse port from rtorrent.rc content for user alexis
       set_fact:
-        current_port_alexis_parsed: "{{ (current_port_alexis.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1')) | default('') }}"
+        current_port_alexis_parsed: "{{ current_port_alexis.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
       when: current_port_alexis is defined and current_port_alexis.stdout != ""
 
     - name: Set port_changed for kevin if port is different
