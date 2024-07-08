@@ -4,9 +4,7 @@
   gather_facts: false
   tasks:
     - name: Get the Gluetun container port
-      local_action: 
-        module: command 
-        cmd: docker inspect -f '{{"{{"}}range .NetworkSettings.Ports{{"}}"}}{{"{{"}}.{{"}}"}}{{"{{"}}end{{"}}"}}' gluetun
+      command: docker inspect -f '{{"{{"}}range .NetworkSettings.Ports{{"}}"}}{{"{{"}}.{{"}}"}}{{"{{"}}end{{"}}"}}' gluetun
       register: gluetun_port_output
 
     - name: Extract port number
@@ -15,16 +13,10 @@
       delegate_to: localhost
 
     - name: Save Gluetun port to a file
-      local_action: 
-        module: copy
+      copy:
         content: "{{ gluetun_port }}"
         dest: /tmp/gluetun_port.txt
-
-    - name: Fetch the Gluetun port file to controller
-      fetch:
-        src: /tmp/gluetun_port.txt
-        dest: /tmp/gluetun_port.txt
-        flat: yes
+      delegate_to: localhost
 
 - name: Copy Gluetun port file to seedbox
   hosts: seedbox
@@ -34,6 +26,7 @@
       copy:
         src: /tmp/gluetun_port.txt
         dest: /tmp/gluetun_port.txt
+        remote_src: no
 
     - name: Load Gluetun port from file
       slurp:
@@ -98,7 +91,7 @@
         line: "port_range = {{ global_gluetun_port }}-{{ global_gluetun_port }}"
       when: port_changed_alexis is defined and port_changed_alexis
 
-- name: Update and restart stacks if necessary
+- name: Copy Gluetun port file to portainer
   hosts: portainer
   gather_facts: false
   tasks:
@@ -106,6 +99,7 @@
       copy:
         src: /tmp/gluetun_port.txt
         dest: /tmp/gluetun_port.txt
+        remote_src: no
 
     - name: Load Gluetun port from file
       slurp:
