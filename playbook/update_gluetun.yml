@@ -10,32 +10,14 @@
     - name: Extract port number
       set_fact:
         gluetun_port: "{{ gluetun_port_output.stdout | regex_search(':(\\d+)', '\\1') }}"
-      delegate_to: localhost
 
-    - name: Save Gluetun port to a file
-      copy:
-        content: "{{ gluetun_port }}"
-        dest: /tmp/gluetun_port.txt
-      delegate_to: localhost
-
-- name: Copy Gluetun port file to seedbox
+- name: Fetch current port from rtorrent.rc for each user and update if necessary
   hosts: seedbox
   gather_facts: false
   tasks:
-    - name: Copy Gluetun port file from controller to seedbox
-      copy:
-        src: /tmp/gluetun_port.txt
-        dest: /tmp/gluetun_port.txt
-        remote_src: no
-
-    - name: Load Gluetun port from file
-      slurp:
-        src: /tmp/gluetun_port.txt
-      register: gluetun_port_file
-
-    - name: Set gluetun_port from file content
+    - name: Set gluetun_port fact on seedbox
       set_fact:
-        global_gluetun_port: "{{ gluetun_port_file.content | b64decode }}"
+        global_gluetun_port: "{{ hostvars['localhost']['gluetun_port'] }}"
 
     - name: Check current port in .rtorrent.rc for user kevin
       command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
@@ -91,24 +73,13 @@
         line: "port_range = {{ global_gluetun_port }}-{{ global_gluetun_port }}"
       when: port_changed_alexis is defined and port_changed_alexis
 
-- name: Copy Gluetun port file to portainer
+- name: Update and restart stacks if necessary
   hosts: portainer
   gather_facts: false
   tasks:
-    - name: Copy Gluetun port file from controller to portainer
-      copy:
-        src: /tmp/gluetun_port.txt
-        dest: /tmp/gluetun_port.txt
-        remote_src: no
-
-    - name: Load Gluetun port from file
-      slurp:
-        src: /tmp/gluetun_port.txt
-      register: gluetun_port_file
-
-    - name: Set gluetun_port from file content
+    - name: Set gluetun_port fact on portainer
       set_fact:
-        global_gluetun_port: "{{ gluetun_port_file.content | b64decode }}"
+        global_gluetun_port: "{{ hostvars['localhost']['gluetun_port'] }}"
 
     - name: Update stack for kevin with new port
       uri:
