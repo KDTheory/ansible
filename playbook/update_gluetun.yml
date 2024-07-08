@@ -1,117 +1,116 @@
 ---
-- name: Orchestrate Seedbox and Docker updates
+- name: Get the Gluetun container port
+  hosts: portainer
   gather_facts: false
-
   tasks:
     - name: Get the Gluetun container port
-      hosts: portainer
-      tasks:
-        - name: Get the Gluetun container port
-          command: docker inspect -f '{{"{{"}}range .NetworkSettings.Ports{{"}}"}}{{"{{"}}.{{"}}"}}{{"{{"}}end{{"}}"}}' gluetun
-          register: gluetun_port_output
+      command: docker inspect -f '{{"{{"}}range .NetworkSettings.Ports{{"}}"}}{{"{{"}}.{{"}}"}}{{"{{"}}end{{"}}"}}' gluetun
+      register: gluetun_port_output
 
-        - name: Extract port number
-          set_fact:
-            gluetun_port: "{{ gluetun_port_output.stdout | regex_search(':(\\d+)', '\\1') }}"
+    - name: Extract port number
+      set_fact:
+        gluetun_port: "{{ gluetun_port_output.stdout | regex_search(':(\\d+)', '\\1') }}"
 
-    - name: Fetch current port from rtorrent.rc for each user and update if necessary
-      hosts: seedbox
-      tasks:
-        - name: Check current port in .rtorrent.rc for user kevin
-          command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
-          register: current_port_kevin
-          changed_when: false
+- name: Fetch current port from rtorrent.rc for each user and update if necessary
+  hosts: seedbox
+  gather_facts: false
+  tasks:
+    - name: Check current port in .rtorrent.rc for user kevin
+      command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
+      register: current_port_kevin
+      changed_when: false
 
-        - name: Check current port in .rtorrent.rc for user alexis
-          command: grep 'port_range = ' /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
-          register: current_port_alexis
-          changed_when: false
+    - name: Check current port in .rtorrent.rc for user alexis
+      command: grep 'port_range = ' /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
+      register: current_port_alexis
+      changed_when: false
 
-        - name: Parse port from rtorrent.rc content for user kevin
-          set_fact:
-            current_port_kevin_parsed: "{{ current_port_kevin.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
-          when: current_port_kevin is defined and current_port_kevin.stdout != ""
+    - name: Parse port from rtorrent.rc content for user kevin
+      set_fact:
+        current_port_kevin_parsed: "{{ current_port_kevin.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
+      when: current_port_kevin is defined and current_port_kevin.stdout != ""
 
-        - name: Parse port from rtorrent.rc content for user alexis
-          set_fact:
-            current_port_alexis_parsed: "{{ current_port_alexis.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
-          when: current_port_alexis is defined and current_port_alexis.stdout != ""
+    - name: Parse port from rtorrent.rc content for user alexis
+      set_fact:
+        current_port_alexis_parsed: "{{ current_port_alexis.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
+      when: current_port_alexis is defined and current_port_alexis.stdout != ""
 
-        - name: Set port_changed for kevin if port is different
-          set_fact:
-            port_changed_kevin: true
-          when: current_port_kevin_parsed != hostvars['portainer']['gluetun_port']
+    - name: Set port_changed for kevin if port is different
+      set_fact:
+        port_changed_kevin: true
+      when: current_port_kevin_parsed != hostvars['portainer']['gluetun_port']
 
-        - name: Set port_changed for alexis if port is different
-          set_fact:
-            port_changed_alexis: true
-          when: current_port_alexis_parsed != hostvars['portainer']['gluetun_port']
+    - name: Set port_changed for alexis if port is different
+      set_fact:
+        port_changed_alexis: true
+      when: current_port_alexis_parsed != hostvars['portainer']['gluetun_port']
 
-        - name: Update .rtorrent.rc for user kevin if port has changed
-          lineinfile:
-            path: /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
-            regexp: 'port_range = '
-            line: "port_range = {{ hostvars['portainer']['gluetun_port'] }}-{{ hostvars['portainer']['gluetun_port'] }}"
-          when: port_changed_kevin is defined and port_changed_kevin
+    - name: Update .rtorrent.rc for user kevin if port has changed
+      lineinfile:
+        path: /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
+        regexp: 'port_range = '
+        line: "port_range = {{ hostvars['portainer']['gluetun_port'] }}-{{ hostvars['portainer']['gluetun_port'] }}"
+      when: port_changed_kevin is defined and port_changed_kevin
 
-        - name: Update .rtorrent.rc for user alexis if port has changed
-          lineinfile:
-            path: /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
-            regexp: 'port_range = '
-            line: "port_range = {{ hostvars['portainer']['gluetun_port'] }}-{{ hostvars['portainer']['gluetun_port'] }}"
-          when: port_changed_alexis is defined and port_changed_alexis
+    - name: Update .rtorrent.rc for user alexis if port has changed
+      lineinfile:
+        path: /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
+        regexp: 'port_range = '
+        line: "port_range = {{ hostvars['portainer']['gluetun_port'] }}-{{ hostvars['portainer']['gluetun_port'] }}"
+      when: port_changed_alexis is defined and port_changed_alexis
 
-    - name: Update and restart stacks if necessary
-      hosts: portainer
-      tasks:
-        - name: Update stack for kevin with new port
-          uri:
-            url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/25/update?endpointId=1"
-            method: PUT
-            headers:
-              Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
-              Content-Type: "application/json"
-            body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ hostvars['seedbox']['gluetun_port'] }}\"}]}"
-            body_format: json
-          register: update_result_kevin
-          when: hostvars['seedbox']['port_changed_kevin'] is defined and hostvars['seedbox']['port_changed_kevin']
+- name: Update and restart stacks if necessary
+  hosts: portainer
+  gather_facts: false
+  tasks:
+    - name: Update stack for kevin with new port
+      uri:
+        url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/25/update?endpointId=1"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
+          Content-Type: "application/json"
+        body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ hostvars['seedbox']['gluetun_port'] }}\"}]}"
+        body_format: json
+      register: update_result_kevin
+      when: hostvars['seedbox']['port_changed_kevin'] is defined and hostvars['seedbox']['port_changed_kevin']
 
-        - name: Update stack for alexis with new port
-          uri:
-            url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/24/update?endpointId=1"
-            method: PUT
-            headers:
-              Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
-              Content-Type: "application/json"
-            body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ hostvars['seedbox']['gluetun_port'] }}\"}]}"
-            body_format: json
-          register: update_result_alexis
-          when: hostvars['seedbox']['port_changed_alexis'] is defined and hostvars['seedbox']['port_changed_alexis']
+    - name: Update stack for alexis with new port
+      uri:
+        url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/24/update?endpointId=1"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
+          Content-Type: "application/json"
+        body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ hostvars['seedbox']['gluetun_port'] }}\"}]}"
+        body_format: json
+      register: update_result_alexis
+      when: hostvars['seedbox']['port_changed_alexis'] is defined and hostvars['seedbox']['port_changed_alexis']
 
-        - name: Set restart flag for kevin if stack update has changed
-          set_fact:
-            stack_restart_required_kevin: true
-          when: update_result_kevin.changed
+    - name: Set restart flag for kevin if stack update has changed
+      set_fact:
+        stack_restart_required_kevin: true
+      when: update_result_kevin.changed
 
-        - name: Set restart flag for alexis if stack update has changed
-          set_fact:
-            stack_restart_required_alexis: true
-          when: update_result_alexis.changed
+    - name: Set restart flag for alexis if stack update has changed
+      set_fact:
+        stack_restart_required_alexis: true
+      when: update_result_alexis.changed
 
-        - name: Restart stack for kevin if needed
-          uri:
-            url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/25/restart?endpointId=1"
-            method: POST
-            headers:
-              Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
-              Content-Type: "application/json"
-          when: stack_restart_required_kevin is defined and stack_restart_required_kevin
+    - name: Restart stack for kevin if needed
+      uri:
+        url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/25/restart?endpointId=1"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
+          Content-Type: "application/json"
+      when: stack_restart_required_kevin is defined and stack_restart_required_kevin
 
-        - name: Restart stack for alexis if needed
-          uri:
-            url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/24/restart?endpointId=1"
-            method: POST
-            headers:
-              Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
-              Content-Type: "application/json"
-          when: stack_restart_required_alexis is defined and stack_restart_required_alexis
+    - name: Restart stack for alexis if needed
+      uri:
+        url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/24/restart?endpointId=1"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
+          Content-Type: "application/json"
+      when: stack_restart_required_alexis is defined and stack_restart_required_alexis
