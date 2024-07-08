@@ -1,35 +1,31 @@
 ---
 - name: Orchestrate Seedbox and Docker updates
-  hosts: localhost
   gather_facts: false
-  vars:
-    portainer_url: "{{ lookup('env', 'PORTAINER_URL') }}"
-    portainer_api_key: "{{ lookup('env', 'PORTAINER_API_KEY') }}"
-    users: "{{ lookup('env', 'USERS') | from_json }}"
 
   tasks:
     - name: Get the Gluetun container port
-      command: docker inspect -f '{{"{{"}}range .NetworkSettings.Ports{{"}}"}}{{"{{"}}.{{"}}"}}{{"{{"}}end{{"}}"}}' gluetun
-      register: gluetun_port_output
-      delegate_to: portainer #portainer
+      hosts: portainer
+      tasks:
+        - name: Get the Gluetun container port
+          command: docker inspect -f '{{"{{"}}range .NetworkSettings.Ports{{"}}"}}{{"{{"}}.{{"}}"}}{{"{{"}}end{{"}}"}}' gluetun
+          register: gluetun_port_output
 
-    - name: Extract port number
-      set_fact:
-        gluetun_port: "{{ gluetun_port_output.stdout | regex_search(':(\\d+)', '\\1') }}"
+        - name: Extract port number
+          set_fact:
+            gluetun_port: "{{ gluetun_port_output.stdout | regex_search(':(\\d+)', '\\1') }}"
 
-    - name: Fetch current port from rtorrent.rc for each user
-      block:
+    - name: Fetch current port from rtorrent.rc for each user and update if necessary
+      hosts: seedbox
+      tasks:
         - name: Check current port in .rtorrent.rc for user kevin
           command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
           register: current_port_kevin
           changed_when: false
-          delegate_to: seedbox
 
         - name: Check current port in .rtorrent.rc for user alexis
           command: grep 'port_range = ' /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
           register: current_port_alexis
           changed_when: false
-          delegate_to: seedbox
 
         - name: Parse port from rtorrent.rc content for user kevin
           set_fact:
@@ -57,7 +53,6 @@
             regexp: 'port_range = '
             line: "port_range = {{ gluetun_port }}-{{ gluetun_port }}"
           when: port_changed_kevin is defined and port_changed_kevin
-          delegate_to: seedbox
 
         - name: Update .rtorrent.rc for user alexis if port has changed
           lineinfile:
@@ -65,35 +60,33 @@
             regexp: 'port_range = '
             line: "port_range = {{ gluetun_port }}-{{ gluetun_port }}"
           when: port_changed_alexis is defined and port_changed_alexis
-          delegate_to: seedbox
 
-    - name: Update stacks with new port if port has changed
-      block:
+    - name: Update and restart stacks if necessary
+      hosts: portainer
+      tasks:
         - name: Update stack for kevin with new port
           uri:
-            url: "{{ portainer_url }}/api/stacks/25/update?endpointId=1"
+            url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/25/update?endpointId=1"
             method: PUT
             headers:
-              Authorization: "Bearer {{ portainer_api_key }}"
+              Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
               Content-Type: "application/json"
-            body: '{"env": [{"name": "GLUETUN_PORT", "value": "{{ gluetun_port }}"}]}'
+            body: '{"env": [{"name": "GLUETUN_PORT", "value": "{{ hostvars['seedbox']['gluetun_port'] }}"}]}'
             body_format: json
           register: update_result_kevin
-          when: port_changed_kevin is defined and port_changed_kevin
-          delegate_to: portainer
+          when: hostvars['seedbox']['port_changed_kevin'] is defined and hostvars['seedbox']['port_changed_kevin']
 
         - name: Update stack for alexis with new port
           uri:
-            url: "{{ portainer_url }}/api/stacks/24/update?endpointId=1"
+            url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/24/update?endpointId=1"
             method: PUT
             headers:
-              Authorization: "Bearer {{ portainer_api_key }}"
+              Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
               Content-Type: "application/json"
-            body: '{"env": [{"name": "GLUETUN_PORT", "value": "{{ gluetun_port }}"}]}'
+            body: '{"env": [{"name": "GLUETUN_PORT", "value": "{{ hostvars['seedbox']['gluetun_port'] }}"}]}'
             body_format: json
           register: update_result_alexis
-          when: port_changed_alexis is defined and port_changed_alexis
-          delegate_to: portainer
+          when: hostvars['seedbox']['port_changed_alexis'] is defined and hostvars['seedbox']['port_changed_alexis']
 
         - name: Set restart flag for kevin if stack update has changed
           set_fact:
@@ -107,20 +100,18 @@
 
         - name: Restart stack for kevin if needed
           uri:
-            url: "{{ portainer_url }}/api/stacks/25/restart?endpointId=1"
+            url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/25/restart?endpointId=1"
             method: POST
             headers:
-              Authorization: "Bearer {{ portainer_api_key }}"
+              Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
               Content-Type: "application/json"
           when: stack_restart_required_kevin is defined and stack_restart_required_kevin
-          delegate_to: portainer
 
         - name: Restart stack for alexis if needed
           uri:
-            url: "{{ portainer_url }}/api/stacks/24/restart?endpointId=1"
+            url: "{{ lookup('env', 'PORTAINER_URL') }}/api/stacks/24/restart?endpointId=1"
             method: POST
             headers:
-              Authorization: "Bearer {{ portainer_api_key }}"
+              Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
               Content-Type: "application/json"
           when: stack_restart_required_alexis is defined and stack_restart_required_alexis
-          delegate_to: portainer
