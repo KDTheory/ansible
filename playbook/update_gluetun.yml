@@ -11,7 +11,7 @@
     - name: Get the Gluetun container port
       command: docker inspect -f '{{"{{"}}range .NetworkSettings.Ports{{"}}"}}{{"{{"}}.{{"}}"}}{{"{{"}}end{{"}}"}}' gluetun
       register: gluetun_port_output
-      delegate_to: portainer
+      delegate_to: 192.168.50.115 #portainer
 
     - name: Extract port number
       set_fact:
