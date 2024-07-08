@@ -71,7 +71,7 @@
             headers:
               Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
               Content-Type: "application/json"
-            body: '{"env": [{"name": "GLUETUN_PORT", "value": "{{ hostvars['seedbox']['gluetun_port'] }}"}]}'
+            body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ hostvars['seedbox']['gluetun_port'] }}\"}]}"
             body_format: json
           register: update_result_kevin
           when: hostvars['seedbox']['port_changed_kevin'] is defined and hostvars['seedbox']['port_changed_kevin']
