@@ -11,6 +11,11 @@
       set_fact:
         gluetun_port: "{{ gluetun_port_output.stdout | regex_search(':(\\d+)', '\\1') }}"
 
+    - name: Save Gluetun port to global variable
+      set_fact:
+        global_gluetun_port: "{{ gluetun_port }}"
+      delegate_to: localhost
+
 - name: Fetch current port from rtorrent.rc for each user and update if necessary
   hosts: seedbox
   gather_facts: false
@@ -48,25 +53,25 @@
     - name: Set port_changed for kevin if port is different
       set_fact:
         port_changed_kevin: true
-      when: current_port_kevin_parsed != hostvars['portainer']['gluetun_port']
+      when: current_port_kevin_parsed != global_gluetun_port
 
     - name: Set port_changed for alexis if port is different
       set_fact:
         port_changed_alexis: true
-      when: current_port_alexis_parsed != hostvars['portainer']['gluetun_port']
+      when: current_port_alexis_parsed != global_gluetun_port
 
     - name: Update .rtorrent.rc for user kevin if port has changed
       lineinfile:
         path: /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
         regexp: 'port_range = '
-        line: "port_range = {{ hostvars['portainer']['gluetun_port'] }}-{{ hostvars['portainer']['gluetun_port'] }}"
+        line: "port_range = {{ global_gluetun_port }}-{{ global_gluetun_port }}"
       when: port_changed_kevin is defined and port_changed_kevin
 
     - name: Update .rtorrent.rc for user alexis if port has changed
       lineinfile:
         path: /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
         regexp: 'port_range = '
-        line: "port_range = {{ hostvars['portainer']['gluetun_port'] }}-{{ hostvars['portainer']['gluetun_port'] }}"
+        line: "port_range = {{ global_gluetun_port }}-{{ global_gluetun_port }}"
       when: port_changed_alexis is defined and port_changed_alexis
 
 - name: Update and restart stacks if necessary
@@ -80,7 +85,7 @@
         headers:
           Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
           Content-Type: "application/json"
-        body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ hostvars['seedbox']['gluetun_port'] }}\"}]}"
+        body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ global_gluetun_port }}\"}]}"
         body_format: json
       register: update_result_kevin
       when: hostvars['seedbox']['port_changed_kevin'] is defined and hostvars['seedbox']['port_changed_kevin']
@@ -92,7 +97,7 @@
         headers:
           Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
           Content-Type: "application/json"
-        body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ hostvars['seedbox']['gluetun_port'] }}\"}]}"
+        body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ global_gluetun_port }}\"}]}"
         body_format: json
       register: update_result_alexis
       when: hostvars['seedbox']['port_changed_alexis'] is defined and hostvars['seedbox']['port_changed_alexis']
