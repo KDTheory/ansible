@@ -20,16 +20,21 @@
         content: "{{ gluetun_port }}"
         dest: /tmp/gluetun_port.txt
 
-    - name: Copy Gluetun port file to seedbox
-      copy:
+    - name: Fetch the Gluetun port file to controller
+      fetch:
         src: /tmp/gluetun_port.txt
         dest: /tmp/gluetun_port.txt
-      delegate_to: 192.168.50.90  # IP address of the seedbox host
+        flat: yes
 
-- name: Fetch current port from rtorrent.rc for each user and update if necessary
+- name: Copy Gluetun port file to seedbox
   hosts: seedbox
   gather_facts: false
   tasks:
+    - name: Copy Gluetun port file from controller to seedbox
+      copy:
+        src: /tmp/gluetun_port.txt
+        dest: /tmp/gluetun_port.txt
+
     - name: Load Gluetun port from file
       slurp:
         src: /tmp/gluetun_port.txt
@@ -97,6 +102,11 @@
   hosts: portainer
   gather_facts: false
   tasks:
+    - name: Copy Gluetun port file from controller to portainer
+      copy:
+        src: /tmp/gluetun_port.txt
+        dest: /tmp/gluetun_port.txt
+
     - name: Load Gluetun port from file
       slurp:
         src: /tmp/gluetun_port.txt
