@@ -40,25 +40,25 @@
         - name: Set port_changed for kevin if port is different
           set_fact:
             port_changed_kevin: true
-          when: current_port_kevin_parsed != gluetun_port
+          when: current_port_kevin_parsed != hostvars['portainer']['gluetun_port']
 
         - name: Set port_changed for alexis if port is different
           set_fact:
             port_changed_alexis: true
-          when: current_port_alexis_parsed != gluetun_port
+          when: current_port_alexis_parsed != hostvars['portainer']['gluetun_port']
 
         - name: Update .rtorrent.rc for user kevin if port has changed
           lineinfile:
             path: /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
             regexp: 'port_range = '
-            line: "port_range = {{ gluetun_port }}-{{ gluetun_port }}"
+            line: "port_range = {{ hostvars['portainer']['gluetun_port'] }}-{{ hostvars['portainer']['gluetun_port'] }}"
           when: port_changed_kevin is defined and port_changed_kevin
 
         - name: Update .rtorrent.rc for user alexis if port has changed
           lineinfile:
             path: /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
             regexp: 'port_range = '
-            line: "port_range = {{ gluetun_port }}-{{ gluetun_port }}"
+            line: "port_range = {{ hostvars['portainer']['gluetun_port'] }}-{{ hostvars['portainer']['gluetun_port'] }}"
           when: port_changed_alexis is defined and port_changed_alexis
 
     - name: Update and restart stacks if necessary
@@ -83,7 +83,7 @@
             headers:
               Authorization: "Bearer {{ lookup('env', 'PORTAINER_API_KEY') }}"
               Content-Type: "application/json"
-            body: '{"env": [{"name": "GLUETUN_PORT", "value": "{{ hostvars['seedbox']['gluetun_port'] }}"}]}'
+            body: "{\"env\": [{\"name\": \"GLUETUN_PORT\", \"value\": \"{{ hostvars['seedbox']['gluetun_port'] }}\"}]}"
             body_format: json
           register: update_result_alexis
           when: hostvars['seedbox']['port_changed_alexis'] is defined and hostvars['seedbox']['port_changed_alexis']
