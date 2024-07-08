@@ -27,12 +27,12 @@
 
     - name: Parse port from rtorrent.rc content for user kevin
       set_fact:
-        current_port_kevin_parsed: "{{ current_port_kevin.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
+        current_port_kevin_parsed: "{{ (current_port_kevin.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1')) | default('') }}"
       when: current_port_kevin is defined and current_port_kevin.stdout != ""
 
     - name: Parse port from rtorrent.rc content for user alexis
       set_fact:
-        current_port_alexis_parsed: "{{ current_port_alexis.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
+        current_port_alexis_parsed: "{{ (current_port_alexis.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1')) | default('') }}"
       when: current_port_alexis is defined and current_port_alexis.stdout != ""
 
     - name: Set port_changed for kevin if port is different
