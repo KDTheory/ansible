@@ -1,5 +1,5 @@
 ---
-- name: Orchestrate Seedbox and Docker updates
+- name: Get the Gluetun container port
   hosts: localhost
   gather_facts: false
   tasks:
@@ -24,74 +24,74 @@
       copy:
         src: /tmp/gluetun_port.txt
         dest: /tmp/gluetun_port.txt
-      delegate_to: 192.168.1.20  # IP address of the seedbox host
+      delegate_to: 192.168.50.90  # IP address of the seedbox host
 
-    - name: Fetch current port from rtorrent.rc for each user and update if necessary
-      hosts: seedbox
-      gather_facts: false
-      tasks:
-        - name: Load Gluetun port from file
-          slurp:
-            src: /tmp/gluetun_port.txt
-          register: gluetun_port_file
+- name: Fetch current port from rtorrent.rc for each user and update if necessary
+  hosts: seedbox
+  gather_facts: false
+  tasks:
+    - name: Load Gluetun port from file
+      slurp:
+        src: /tmp/gluetun_port.txt
+      register: gluetun_port_file
 
-        - name: Set gluetun_port from file content
-          set_fact:
-            global_gluetun_port: "{{ gluetun_port_file.content | b64decode }}"
+    - name: Set gluetun_port from file content
+      set_fact:
+        global_gluetun_port: "{{ gluetun_port_file.content | b64decode }}"
 
-        - name: Check current port in .rtorrent.rc for user kevin
-          command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
-          register: current_port_kevin
-          changed_when: false
+    - name: Check current port in .rtorrent.rc for user kevin
+      command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
+      register: current_port_kevin
+      changed_when: false
 
-        - name: Check current port in .rtorrent.rc for user alexis
-          command: grep 'port_range = ' /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
-          register: current_port_alexis
-          changed_when: false
+    - name: Check current port in .rtorrent.rc for user alexis
+      command: grep 'port_range = ' /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
+      register: current_port_alexis
+      changed_when: false
 
-        - name: Ensure current_port_kevin_parsed is defined
-          set_fact:
-            current_port_kevin_parsed: "{{ '' }}"
-          when: current_port_kevin is not defined or current_port_kevin.stdout == ""
+    - name: Ensure current_port_kevin_parsed is defined
+      set_fact:
+        current_port_kevin_parsed: "{{ '' }}"
+      when: current_port_kevin is not defined or current_port_kevin.stdout == ""
 
-        - name: Ensure current_port_alexis_parsed is defined
-          set_fact:
-            current_port_alexis_parsed: "{{ '' }}"
-          when: current_port_alexis is not defined or current_port_alexis.stdout == ""
+    - name: Ensure current_port_alexis_parsed is defined
+      set_fact:
+        current_port_alexis_parsed: "{{ '' }}"
+      when: current_port_alexis is not defined or current_port_alexis.stdout == ""
 
-        - name: Parse port from rtorrent.rc content for user kevin
-          set_fact:
-            current_port_kevin_parsed: "{{ current_port_kevin.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
-          when: current_port_kevin is defined and current_port_kevin.stdout != ""
+    - name: Parse port from rtorrent.rc content for user kevin
+      set_fact:
+        current_port_kevin_parsed: "{{ current_port_kevin.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
+      when: current_port_kevin is defined and current_port_kevin.stdout != ""
 
-        - name: Parse port from rtorrent.rc content for user alexis
-          set_fact:
-            current_port_alexis_parsed: "{{ current_port_alexis.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
-          when: current_port_alexis is defined and current_port_alexis.stdout != ""
+    - name: Parse port from rtorrent.rc content for user alexis
+      set_fact:
+        current_port_alexis_parsed: "{{ current_port_alexis.stdout | regex_search('port_range = (\\d+)-(\\d+)', '\\1') }}"
+      when: current_port_alexis is defined and current_port_alexis.stdout != ""
 
-        - name: Set port_changed for kevin if port is different
-          set_fact:
-            port_changed_kevin: true
-          when: current_port_kevin_parsed != global_gluetun_port
+    - name: Set port_changed for kevin if port is different
+      set_fact:
+        port_changed_kevin: true
+      when: current_port_kevin_parsed != global_gluetun_port
 
-        - name: Set port_changed for alexis if port is different
-          set_fact:
-            port_changed_alexis: true
-          when: current_port_alexis_parsed != global_gluetun_port
+    - name: Set port_changed for alexis if port is different
+      set_fact:
+        port_changed_alexis: true
+      when: current_port_alexis_parsed != global_gluetun_port
 
-        - name: Update .rtorrent.rc for user kevin if port has changed
-          lineinfile:
-            path: /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
-            regexp: 'port_range = '
-            line: "port_range = {{ global_gluetun_port }}-{{ global_gluetun_port }}"
-          when: port_changed_kevin is defined and port_changed_kevin
+    - name: Update .rtorrent.rc for user kevin if port has changed
+      lineinfile:
+        path: /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
+        regexp: 'port_range = '
+        line: "port_range = {{ global_gluetun_port }}-{{ global_gluetun_port }}"
+      when: port_changed_kevin is defined and port_changed_kevin
 
-        - name: Update .rtorrent.rc for user alexis if port has changed
-          lineinfile:
-            path: /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
-            regexp: 'port_range = '
-            line: "port_range = {{ global_gluetun_port }}-{{ global_gluetun_port }}"
-          when: port_changed_alexis is defined and port_changed_alexis
+    - name: Update .rtorrent.rc for user alexis if port has changed
+      lineinfile:
+        path: /home/kevin/config/rutorrent-alexis/rtorrent/.rtorrent.rc
+        regexp: 'port_range = '
+        line: "port_range = {{ global_gluetun_port }}-{{ global_gluetun_port }}"
+      when: port_changed_alexis is defined and port_changed_alexis
 
 - name: Update and restart stacks if necessary
   hosts: portainer
