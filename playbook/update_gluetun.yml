@@ -1,6 +1,6 @@
 ---
 - name: Get the Gluetun container port
-  hosts: localhost
+  hosts: portainer
   gather_facts: false
   tasks:
     - name: Get the Gluetun container port
@@ -17,7 +17,7 @@
   tasks:
     - name: Set gluetun_port fact on seedbox
       set_fact:
-        global_gluetun_port: "{{ hostvars['localhost']['gluetun_port'] }}"
+        global_gluetun_port: "{{ hostvars['portainer']['gluetun_port'] }}"
 
     - name: Check current port in .rtorrent.rc for user kevin
       command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
@@ -79,7 +79,7 @@
   tasks:
     - name: Set gluetun_port fact on portainer
       set_fact:
-        global_gluetun_port: "{{ hostvars['localhost']['gluetun_port'] }}"
+        global_gluetun_port: "{{ hostvars['portainer']['gluetun_port'] }}"
 
     - name: Update stack for kevin with new port
       uri:
