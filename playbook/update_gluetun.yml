@@ -2,6 +2,7 @@
 - name: Get the Gluetun container port
   hosts: portainer
   gather_facts: false
+  become: true
   tasks:
     - name: Get the Gluetun container port
       command: docker inspect -f '{{"{{"}}range .NetworkSettings.Ports{{"}}"}}{{"{{"}}.{{"}}"}}{{"{{"}}end{{"}}"}}' gluetun
@@ -76,6 +77,7 @@
 - name: Update and restart stacks if necessary
   hosts: portainer
   gather_facts: false
+  become: true
   tasks:
     - name: Set gluetun_port fact on portainer
       set_fact:
