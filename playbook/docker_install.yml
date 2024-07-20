@@ -1,6 +1,6 @@
 ---
 - name: Installer Docker et Portainer Agent
-  hosts: install
+  hosts: all
   become: yes
   tasks:
     - name: Mettre à jour la liste des paquets
@@ -20,13 +20,17 @@
 
     - name: Ajouter la clé GPG officielle de Docker
       apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
+        url: https://download.docker.com/linux/debian/gpg
         state: present
 
-    - name: Ajouter le dépôt Docker
+    - name: Ajouter le dépôt Docker pour Debian
       apt_repository:
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+        repo: deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable
         state: present
+
+    - name: Mettre à jour la liste des paquets après ajout du dépôt Docker
+      apt:
+        update_cache: yes
 
     - name: Installer Docker
       apt:
