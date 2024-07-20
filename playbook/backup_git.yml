@@ -4,7 +4,7 @@
   become: yes
   vars:
     repo_path: "/home/kevin/config"
-    log_file: "/home/kevin/config/script/log/backup.log"
+    log_file: "/home/kevin/backup_log/backup.log"
     max_log_size: 1
 
   tasks:
