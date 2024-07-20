@@ -1,6 +1,6 @@
 ---
 - name: Installer Docker et Portainer Agent
-  hosts: all
+  hosts: install
   become: yes
   tasks:
     - name: Mettre à jour la liste des paquets
