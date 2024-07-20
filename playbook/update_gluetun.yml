@@ -12,10 +12,10 @@
       set_fact:
         gluetun_port: "{{ gluetun_port_output.stdout | regex_search(':(\\d+)', '\\1') }}"
 
-    - name: Save gluetun_port to global fact
-      set_fact:
-        global_gluetun_port: "{{ gluetun_port }}"
-      delegate_to: localhost
+    - name: Add gluetun_port to all hosts
+      add_host:
+        name: "global_gluetun_host"
+        gluetun_port: "{{ gluetun_port }}"
 
 - name: Fetch current port from rtorrent.rc for each user and update if necessary
   hosts: seedbox
@@ -23,7 +23,7 @@
   tasks:
     - name: Set gluetun_port fact on seedbox
       set_fact:
-        global_gluetun_port: "{{ hostvars['localhost']['global_gluetun_port'] }}"
+        global_gluetun_port: "{{ hostvars['global_gluetun_host']['gluetun_port'] }}"
 
     - name: Check current port in .rtorrent.rc for user kevin
       command: grep 'port_range = ' /home/kevin/config/rutorrent-kevin/rtorrent/.rtorrent.rc
@@ -86,7 +86,7 @@
   tasks:
     - name: Set gluetun_port fact on portainer
       set_fact:
-        global_gluetun_port: "{{ hostvars['localhost']['global_gluetun_port'] }}"
+        global_gluetun_port: "{{ hostvars['global_gluetun_host']['gluetun_port'] }}"
 
     - name: Update stack for kevin with new port
       uri:
