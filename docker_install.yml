@@ -1,0 +1,69 @@
+---
+- name: Installer Docker et Portainer Agent
+  hosts: all
+  become: yes
+  tasks:
+    - name: Mettre à jour la liste des paquets
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Installer les paquets nécessaires
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+        state: present
+
+    - name: Ajouter la clé GPG officielle de Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Ajouter le dépôt Docker
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+        state: present
+
+    - name: Installer Docker
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Démarrer et activer le service Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Vérifier que Docker est installé
+      command: docker --version
+      register: docker_version
+
+    - name: Afficher la version de Docker
+      debug:
+        msg: "Docker version: {{ docker_version.stdout }}"
+
+    - name: Lancer le conteneur Portainer Agent
+      docker_container:
+        name: portainer_agent
+        image: portainer/agent:2.20.3
+        state: started
+        restart_policy: always
+        published_ports:
+          - "9001:9001"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+          - /var/lib/docker/volumes:/var/lib/docker/volumes
+
+    - name: Vérifier que Portainer Agent est en cours d'exécution
+      docker_container_info:
+        name: portainer_agent
+      register: portainer_agent_info
+
+    - name: Afficher les détails du conteneur Portainer Agent
+      debug:
+        msg: "Portainer Agent info: {{ portainer_agent_info }}"
