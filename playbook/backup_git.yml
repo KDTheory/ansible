@@ -1,6 +1,6 @@
 ---
 - name: Pousser les modifications du dossier kevin/config vers le dépôt Git
-  hosts: all
+  hosts: git
   become: yes
   vars:
     repo_path: "/home/kevin/config"
@@ -20,51 +20,37 @@
         state: directory
 
     - name: Vérifier la taille du fichier de log et effectuer une rotation si nécessaire
-      command: >
+      shell: |
         if [ -e "{{ log_file }}" ]; then
-          if [ $(du -m "{{ log_file }}" | awk '{print $1}') -gt {{ max_log_size }} ]; then
-            mv "{{ log_file }}" "{{ log_file }}.1" &&
-            rm -f "{{ log_file }}.2" &&
-            mv "{{ log_file }}.1" "{{ log_file }}.2";
-          fi;
+          LOG_SIZE_MB=$(du -m "{{ log_file }}" | awk '{print $1}')
+          if [ "$LOG_SIZE_MB" -gt {{ max_log_size }} ]; then
+            mv "{{ log_file }}" "{{ log_file }}.1"
+            rm -f "{{ log_file }}.2"
+            mv "{{ log_file }}.1" "{{ log_file }}.2"
+          fi
         fi
-      ignore_errors: yes
-
-    - name: Configurer le fichier de log pour la sortie standard et les erreurs
-      command: >
-        exec >> "{{ log_file }}" 2>&1
       ignore_errors: yes
 
     - name: Afficher un message de début de sauvegarde
       debug:
         msg: "-----------------------------/!\\ Backup commencé le {{ ansible_date_time.iso8601 }} /!\\-----------------------------"
-      register: log_start_message
 
-    - name: Changer de répertoire vers le répertoire Git
-      command: cd "{{ repo_path }}"
-      args:
-        chdir: "{{ repo_path }}"
-      ignore_errors: yes
+    - name: Changer de répertoire vers le répertoire Git et effectuer les commandes Git
+      block:
+        - name: Ajouter tous les fichiers modifiés à l'index Git
+          git:
+            repo: "{{ repo_path }}"
+            state: present
+            track: yes
+            name: "backup"
+            commit_msg: "Backup for {{ ansible_date_time.iso8601 }}"
 
-    - name: Ajouter tous les fichiers modifiés à l'index Git
-      command: git add .
-      args:
-        chdir: "{{ repo_path }}"
-      ignore_errors: yes
-
-    - name: Créer un message de commit avec la date et l'heure actuelles
-      command: git commit -m "Backup for {{ ansible_date_time.iso8601 }}"
-      args:
-        chdir: "{{ repo_path }}"
-      ignore_errors: yes
-
-    - name: Effectuer git push
-      command: git push
-      args:
-        chdir: "{{ repo_path }}"
+        - name: Effectuer git push
+          command: git push
+          args:
+            chdir: "{{ repo_path }}"
       ignore_errors: yes
 
     - name: Afficher un message de succès
       debug:
         msg: "-----------------------------/!\\ Backup effectué le {{ ansible_date_time.iso8601 }} /!\\-----------------------------"
-      register: log_success_message
