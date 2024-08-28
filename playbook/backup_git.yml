@@ -6,6 +6,8 @@
     repo_path: "/home/kevin/config"
     log_file: "/home/kevin/backup_log/backup.log"
     max_log_size: 1
+    git_user_name: "KDTheory"  # Ajoutez ici le nom d'utilisateur Git
+    git_user_email: "kdarmondev@gmail.com"  # Ajoutez ici l'email Git
 
   tasks:
     - name: Vérifier que Git est installé
@@ -34,6 +36,18 @@
     - name: Afficher un message de début de sauvegarde
       debug:
         msg: "-----------------------------/!\\ Backup commencé le {{ ansible_date_time.iso8601 }} /!\\-----------------------------"
+
+    - name: Configurer l'utilisateur Git
+      block:
+        - name: Configurer le nom d'utilisateur Git
+          command: git config --global user.name "{{ git_user_name }}"
+          args:
+            chdir: "{{ repo_path }}"
+
+        - name: Configurer l'email Git
+          command: git config --global user.email "{{ git_user_email }}"
+          args:
+            chdir: "{{ repo_path }}"
 
     - name: Changer de répertoire vers le répertoire Git et effectuer les commandes Git
       block:
